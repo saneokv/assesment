@@ -34,6 +34,11 @@ public class RelationController {
         return relationService.getInversedRelations();
     }
 
+    @GetMapping("/path")
+    public String getPath(@RequestParam String source, @RequestParam String target) {
+        return null;
+    }
+
     @PostMapping
     public void addRelation(@RequestBody @Valid AddRelationDto addRelationDto) {
         relationService.addRelation(addRelationDto);

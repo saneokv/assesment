@@ -6,6 +6,7 @@ import com.example.demo.entities.Relation;
 import com.example.demo.entities.Word;
 import com.example.demo.enums.RelationEnum;
 import com.example.demo.exceptions.ExistingRelationException;
+import com.example.demo.exceptions.WordNotExistsException;
 import com.example.demo.repositories.RelationRepository;
 import com.example.demo.repositories.WordRepository;
 import lombok.RequiredArgsConstructor;
@@ -15,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -52,21 +54,38 @@ public class RelationService {
 
     @Transactional
     public void addRelation(AddRelationDto addRelationDto) {
-        Optional<Relation> relationOptional = relationRepository.findByFirstWord_WordAndSecondWord_Word(addRelationDto.getFirstWord(), addRelationDto.getSecondWord());
-        Optional<Relation> reverseRelationOptional = relationRepository.findByFirstWord_WordAndSecondWord_Word(addRelationDto.getSecondWord(), addRelationDto.getFirstWord());
+        Optional<Relation> relationOptional = relationRepository.findByFirstWord_WordAndSecondWord_Word(addRelationDto.getFirstWord().toLowerCase().trim(), addRelationDto.getSecondWord().toLowerCase().trim());
+        Optional<Relation> reverseRelationOptional = relationRepository.findByFirstWord_WordAndSecondWord_Word(addRelationDto.getSecondWord().toLowerCase().trim(), addRelationDto.getFirstWord().toLowerCase().trim());
         if (relationOptional.isPresent() || reverseRelationOptional.isPresent()) {
             throw new ExistingRelationException("The ralation already exists", addRelationDto);
         }
 
-        Word firstWord = wordRepository.findByWord(addRelationDto.getFirstWord())
+        Word firstWord = wordRepository.findByWord(addRelationDto.getFirstWord().toLowerCase().trim())
                 .orElseGet(() -> wordRepository.save(
                         Word.builder().word(addRelationDto.getFirstWord().toLowerCase().trim()).build()));
 
-        Word secondWord = wordRepository.findByWord(addRelationDto.getSecondWord())
+        Word secondWord = wordRepository.findByWord(addRelationDto.getSecondWord().toLowerCase().trim())
                 .orElseGet(() -> wordRepository.save(
                         Word.builder().word(addRelationDto.getSecondWord().toLowerCase().trim()).build()));
 
         Relation relation = Relation.builder().firstWord(firstWord).secondWord(secondWord).relation(addRelationDto.getRelation()).build();
         relationRepository.save(relation);
+    }
+
+    public String getPath(String source, String target) {
+        Word sourceWord = wordRepository.findByWord(source.toLowerCase().trim())
+                .orElseThrow(() -> new WordNotExistsException("Word does not exist", source));
+
+        Word targetWord = wordRepository.findByWord(target.toLowerCase().trim())
+                .orElseThrow(() -> new WordNotExistsException("Word does not exist", target));
+
+        List<Relation> relations = relationRepository.findAll();
+
+        String path = sourceWord.getWord();
+        List<Relation> filteredRelations = new ArrayList<>();
+        filteredRelations.addAll(relations.stream().filter(r -> r.getFirstWord().getWord().equals(sourceWord.getWord())).toList());
+        filteredRelations.addAll(relations.stream().filter(r -> r.getSecondWord().getWord().equals(sourceWord.getWord())).map(r -> Relation.builder().firstWord(r.getSecondWord()).secondWord(r.getFirstWord()).relation(r.getRelation()).build()).toList());
+
+        return null;
     }
 }
